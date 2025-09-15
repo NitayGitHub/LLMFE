@@ -6,6 +6,10 @@ from typing import Collection, Sequence, Type
 import numpy as np
 import time
 
+from transformers import (
+    pipeline, AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+)
+
 from llmfe import evaluator
 from llmfe import buffer
 from llmfe import config as config_lib
@@ -157,13 +161,42 @@ class LocalLLM(LLM):
         """
         super().__init__(samples_per_prompt)
 
-        url = "http://127.0.0.1:5000/completions"
-        instruction_prompt = ("You are a helpful assistant tasked with discovering new features/ dropping less important feaures for the given prediction task. \
+        self._instruction_prompt = ("You are a helpful assistant tasked with discovering new features/ dropping less important features for the given prediction task. \
                              Complete the 'modify_features' function below, considering the physical meaning and relationships of inputs.\n\n")
         self._batch_inference = batch_inference
-        self._url = url
-        self._instruction_prompt = instruction_prompt
         self._trim = trim
+        self._device = 0 if torch.cuda.is_available() else -1
+        self._pretrained_model_path = 'meta-llama/Llama-3.1-8B-Instruct'
+
+        # Load local model + tokenizer
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            pretrained_model_name_or_path=self._pretrained_model_path,
+            use_auth_token=True
+        )
+        if self.tokenizer.pad_token_id is None:
+            self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
+
+        compute_dtype = getattr(torch, "bfloat16")
+        bnb_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_compute_dtype=compute_dtype,
+            bnb_4bit_use_double_quant=True,
+        )
+
+        self.model = AutoModelForCausalLM.from_pretrained(
+            pretrained_model_name_or_path=self._pretrained_model_path,
+            quantization_config=bnb_config,
+            device_map="auto",
+            use_auth_token=True
+        )
+
+        # Build generation pipeline
+        self.generator = pipeline(
+            "text-generation",
+            model=self.model,
+            tokenizer=self.tokenizer,
+        )
 
 
     def draw_samples(self, prompt: str, config: config_lib.Config) -> Collection[str]:
@@ -174,29 +207,30 @@ class LocalLLM(LLM):
             return self._draw_samples_local(prompt, config)
 
 
-    def _draw_samples_local(self, prompt: str, config: config_lib.Config) -> Collection[str]:    
-        # instruction
-        prompt = '\n'.join([self._instruction_prompt, prompt])
-        while True:
-            try:
-                all_samples = []
-                # response from llm server
-                if self._batch_inference:
-                    response = self._do_request(prompt)
-                    for res in response:
-                        all_samples.append(res)
-                else:
-                    for _ in range(self._samples_per_prompt):
-                        response = self._do_request(prompt)
-                        all_samples.append(response)
+    def _draw_samples_local(self, prompt: str, config) -> Collection[str]:
+        prompt = "\n".join([self._instruction_prompt, prompt])
 
-                # trim equation program skeleton body from samples
+        try:
+            outputs = self.generator(
+                prompt,
+                max_new_tokens=512,
+                do_sample=True,
+                top_p=0.95,
+                top_k=30,
+                temperature=0.8,
+                num_return_sequences=self._samples_per_prompt
+            )
+            all_samples = []
+            for out in outputs:
+                response = out["generated_text"]
                 if self._trim:
-                    all_samples = [_extract_body(sample, config) for sample in all_samples]
-                
-                return all_samples
-            except Exception:
-                continue
+                    response = _extract_body(response, config)
+                all_samples.append(response)
+            return all_samples
+
+        except Exception as e:
+            print(f"Local inference failed: {e}")
+            return []
 
 
     def _draw_samples_api(self, prompt: str, config: config_lib.Config) -> Collection[str]:
