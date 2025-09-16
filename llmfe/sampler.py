@@ -10,11 +10,6 @@ import torch
 from transformers import (
     pipeline, AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 )
-import logging
-logging.basicConfig(
-    level=logging.INFO,  # or DEBUG for more verbosity
-    format="%(asctime)s [%(levelname)s] %(message)s",
-)
 
 from llmfe import evaluator
 from llmfe import buffer
@@ -214,7 +209,7 @@ class LocalLLM(LLM):
     def _draw_samples_local(self, prompt: str, config) -> Collection[str]:
         prompt = "\n".join([self._instruction_prompt, prompt])
 
-        logging.info(f"Running local generation with prompt:\n{prompt}")
+        print(prompt)
 
         try:
             outputs = self.generator(
@@ -235,7 +230,7 @@ class LocalLLM(LLM):
             return all_samples
 
         except Exception as e:
-            logging.error(f"Local inference failed: {e}", exc_info=True)
+            print(f"Local inference failed: {e}")
             return []
 
 
