@@ -199,43 +199,26 @@ class LocalLLM(LLM):
 
 
     def _draw_samples_local(self, prompt: str, config: config_lib.Config) -> Collection[str]:
-    # Instruction prefix
-    prompt = '\n'.join([self._instruction_prompt, prompt])
-    print(prompt)
-
-    while True:
-        try:
-            all_samples = []
-
-            # Tokenize once
-            inputs = self.tokenizer.apply_chat_template(
-                [{"role": "user", "content": prompt}],
-                add_generation_prompt=True,
-                return_tensors="pt"
-            ).to(self._device)
-
-            if self._batch_inference:
-                # Repeat prompt for batch inference
-                inputs = torch.vstack([inputs] * self._samples_per_prompt)
-
-                outputs = self.model.generate(
-                    inputs,
-                    max_new_tokens=512,
-                    temperature=0.8,
-                    do_sample=True,
-                    top_k=30,
-                    top_p=0.9,
-                    num_return_sequences=1,
-                )
-
-                for i in range(outputs.shape[0]):
-                    text = self.tokenizer.decode(outputs[i, len(inputs[i]):], skip_special_tokens=True)
-                    all_samples.append(text)
-
-            else:
-                # Sequential requests
-                for _ in range(self._samples_per_prompt):
-                        outputs = self.model.generate(
+        # Instruction prefix
+        prompt = '\n'.join([self._instruction_prompt, prompt])
+        print(prompt)
+    
+        while True:
+            try:
+                all_samples = []
+    
+                # Tokenize once
+                inputs = self.tokenizer.apply_chat_template(
+                    [{"role": "user", "content": prompt}],
+                    add_generation_prompt=True,
+                    return_tensors="pt"
+                ).to(self._device)
+    
+                if self._batch_inference:
+                    # Repeat prompt for batch inference
+                    inputs = torch.vstack([inputs] * self._samples_per_prompt)
+    
+                    outputs = self.model.generate(
                         inputs,
                         max_new_tokens=512,
                         temperature=0.8,
@@ -244,23 +227,40 @@ class LocalLLM(LLM):
                         top_p=0.9,
                         num_return_sequences=1,
                     )
-                    text = self.tokenizer.decode(output[0, len(inputs[0]):], skip_special_tokens=True)
-                    all_samples.append(text)
-
-            # Optional trim
-            if self._trim:
-                all_samples = [_extract_body(sample, config) for sample in all_samples]
-
-            return all_samples
-
-        except torch.cuda.OutOfMemoryError:
-            gc.collect()
-            if torch.cuda.device_count() > 0:
-                torch.cuda.empty_cache()
-            continue
-        except Exception as e:
-            print(f"Error during generation: {e}")
-            continue
+    
+                    for i in range(outputs.shape[0]):
+                        text = self.tokenizer.decode(outputs[i, len(inputs[i]):], skip_special_tokens=True)
+                        all_samples.append(text)
+    
+                else:
+                    # Sequential requests
+                    for _ in range(self._samples_per_prompt):
+                            outputs = self.model.generate(
+                            inputs,
+                            max_new_tokens=512,
+                            temperature=0.8,
+                            do_sample=True,
+                            top_k=30,
+                            top_p=0.9,
+                            num_return_sequences=1,
+                        )
+                        text = self.tokenizer.decode(output[0, len(inputs[0]):], skip_special_tokens=True)
+                        all_samples.append(text)
+    
+                # Optional trim
+                if self._trim:
+                    all_samples = [_extract_body(sample, config) for sample in all_samples]
+    
+                return all_samples
+    
+            except torch.cuda.OutOfMemoryError:
+                gc.collect()
+                if torch.cuda.device_count() > 0:
+                    torch.cuda.empty_cache()
+                continue
+            except Exception as e:
+                print(f"Error during generation: {e}")
+                continue
 
 
     def _draw_samples_api(self, prompt: str, config: config_lib.Config) -> Collection[str]:
