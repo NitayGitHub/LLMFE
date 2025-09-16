@@ -171,7 +171,7 @@ class LocalLLM(LLM):
         # Load local model + tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(
             pretrained_model_name_or_path=self._pretrained_model_path,
-            use_auth_token=True
+            token=True
         )
         if self.tokenizer.pad_token_id is None:
             self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
@@ -187,8 +187,9 @@ class LocalLLM(LLM):
         self.model = AutoModelForCausalLM.from_pretrained(
             pretrained_model_name_or_path=self._pretrained_model_path,
             quantization_config=bnb_config,
-            use_auth_token=True
-        ).to(self._device)
+            device_map="auto",
+            token=True
+        )
 
     def draw_samples(self, prompt: str, config: config_lib.Config) -> Collection[str]:
         """Returns multiple equation program skeleton hypotheses for the given `prompt`."""
