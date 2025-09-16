@@ -62,7 +62,7 @@ class Sampler:
         """ Continuously gets prompts, samples programs, sends them for analysis. """
         while True:
             # stop the search process if hit global max sample nums
-            if self._max_sample_nums//5 and self.__class__._global_samples_nums >= self._max_sample_nums//5:
+            if self._max_sample_nums//1 and self.__class__._global_samples_nums >= self._max_sample_nums//1:
                 break
             
             prompt = self._database.get_prompt()
