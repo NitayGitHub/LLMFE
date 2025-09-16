@@ -18,6 +18,7 @@ import requests
 import json
 import http.client
 import os
+os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
 
 class LLM(ABC):
     def __init__(self, samples_per_prompt: int) -> None:
