@@ -227,6 +227,8 @@ class LocalLLM(LLM):
                         top_k=30,
                         top_p=0.9,
                         num_return_sequences=1,
+                        eos_token_id=self.tokenizer.eos_token_id,
+                        pad_token_id=self.tokenizer.pad_token_id
                     )
     
                     for i in range(outputs.shape[0]):
@@ -244,6 +246,8 @@ class LocalLLM(LLM):
                             top_k=30,
                             top_p=0.9,
                             num_return_sequences=1,
+                            eos_token_id=self.tokenizer.eos_token_id,
+                            pad_token_id=self.tokenizer.pad_token_id
                         )
                         text = self.tokenizer.decode(outputs[0, len(inputs[0]):], skip_special_tokens=True)
                         all_samples.append(text)
