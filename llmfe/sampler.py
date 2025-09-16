@@ -176,12 +176,12 @@ class LocalLLM(LLM):
         if self.tokenizer.pad_token_id is None:
             self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
 
-        compute_dtype = getattr(torch, "float16")
+        compute_dtype = getattr(torch, "bfloat16")
         bnb_config = BitsAndBytesConfig(
             load_in_4bit=True,
             bnb_4bit_quant_type="nf4",
             bnb_4bit_compute_dtype=compute_dtype,
-            bnb_4bit_use_double_quant=False,
+            bnb_4bit_use_double_quant=True,
         )
 
         self.model = AutoModelForCausalLM.from_pretrained(
