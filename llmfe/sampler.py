@@ -224,7 +224,7 @@ class LocalLLM(LLM):
     
                     outputs = self.model.generate(
                         inputs,
-                        max_new_tokens=512,
+                        max_new_tokens=1024,
                         temperature=0.8,
                         do_sample=True,
                         top_k=30,
@@ -243,7 +243,7 @@ class LocalLLM(LLM):
                     for _ in range(self._samples_per_prompt):
                         outputs = self.model.generate(
                             inputs,
-                            max_new_tokens=512,
+                            max_new_tokens=1024,
                             temperature=0.8,
                             do_sample=True,
                             top_k=30,
