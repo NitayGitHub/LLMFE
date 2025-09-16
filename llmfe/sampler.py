@@ -167,8 +167,6 @@ class LocalLLM(LLM):
         self._device = 0 if torch.cuda.is_available() else -1
         self._pretrained_model_path = 'meta-llama/Llama-3.1-8B-Instruct'
 
-        os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
-
         # Load local model + tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(
             pretrained_model_name_or_path=self._pretrained_model_path,
