@@ -167,6 +167,7 @@ class LocalLLM(LLM):
         self._samples_per_prompt = samples_per_prompt
         self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self._pretrained_model_path = 'meta-llama/Llama-3.1-8B-Instruct'
+        self._print_prompt = True
 
         # Load local model + tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(
@@ -202,7 +203,9 @@ class LocalLLM(LLM):
     def _draw_samples_local(self, prompt: str, config: config_lib.Config) -> Collection[str]:
         # Instruction prefix
         prompt = '\n'.join([self._instruction_prompt, prompt])
-        print(prompt)
+        if self._print_prompt:
+            print(prompt)
+            self._print_prompt = False
     
         while True:
             try:
