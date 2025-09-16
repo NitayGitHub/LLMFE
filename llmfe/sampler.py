@@ -6,6 +6,7 @@ from typing import Collection, Sequence, Type
 import numpy as np
 import time
 
+import torch
 from transformers import (
     pipeline, AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 )
@@ -17,8 +18,6 @@ import requests
 import json
 import http.client
 import os
-
-
 
 class LLM(ABC):
     def __init__(self, samples_per_prompt: int) -> None:
