@@ -21,7 +21,7 @@ def evaluate(data: dict):
 
     from sklearn import preprocessing
     from sklearn.model_selection import StratifiedKFold, KFold
-    from sklearn.metrics import mean_squared_error
+    from sklearn.metrics import root_mean_squared_error
     from preprocessing import preprocess_datasets
     import xgboost as xgb
     import torch
@@ -62,7 +62,7 @@ def evaluate(data: dict):
         model.fit(X_train, y_train)
         
         y_pred = model.predict(X_test)
-        score = -1*mean_squared_error(y_test, y_pred, squared=False)
+        score = -1*root_mean_squared_error(y_test, y_pred)(y_test, y_pred)
         scores.append(score)
 
     # Calculate average score
