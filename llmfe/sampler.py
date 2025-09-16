@@ -164,7 +164,8 @@ class LocalLLM(LLM):
                              Complete the 'modify_features' function below, considering the physical meaning and relationships of inputs.\n\n")
         self._batch_inference = batch_inference
         self._trim = trim
-        self._device = 0 if torch.cuda.is_available() else -1
+        self._samples_per_prompt = samples_per_prompt
+        self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self._pretrained_model_path = 'meta-llama/Llama-3.1-8B-Instruct'
 
         # Load local model + tokenizer
@@ -186,17 +187,8 @@ class LocalLLM(LLM):
         self.model = AutoModelForCausalLM.from_pretrained(
             pretrained_model_name_or_path=self._pretrained_model_path,
             quantization_config=bnb_config,
-            device_map="auto",
             use_auth_token=True
-        )
-
-        # Build generation pipeline
-        self.generator = pipeline(
-            "text-generation",
-            model=self.model,
-            tokenizer=self.tokenizer,
-        )
-
+        ).to(self._device)
 
     def draw_samples(self, prompt: str, config: config_lib.Config) -> Collection[str]:
         """Returns multiple equation program skeleton hypotheses for the given `prompt`."""
@@ -206,32 +198,69 @@ class LocalLLM(LLM):
             return self._draw_samples_local(prompt, config)
 
 
-    def _draw_samples_local(self, prompt: str, config) -> Collection[str]:
-        prompt = "\n".join([self._instruction_prompt, prompt])
+    def _draw_samples_local(self, prompt: str, config: config_lib.Config) -> Collection[str]:
+    # Instruction prefix
+    prompt = '\n'.join([self._instruction_prompt, prompt])
+    print(prompt)
 
-        print(prompt)
-
+    while True:
         try:
-            outputs = self.generator(
-                prompt,
-                max_new_tokens=512,
-                do_sample=True,
-                top_p=0.95,
-                top_k=30,
-                temperature=0.8,
-                num_return_sequences=self._samples_per_prompt
-            )
             all_samples = []
-            for out in outputs:
-                response = out["generated_text"]
-                if self._trim:
-                    response = _extract_body(response, config)
-                all_samples.append(response)
+
+            # Tokenize once
+            inputs = self.tokenizer.apply_chat_template(
+                [{"role": "user", "content": prompt}],
+                add_generation_prompt=True,
+                return_tensors="pt"
+            ).to(self._device)
+
+            if self._batch_inference:
+                # Repeat prompt for batch inference
+                inputs = torch.vstack([inputs] * self._samples_per_prompt)
+
+                outputs = self.model.generate(
+                    inputs,
+                    max_new_tokens=512,
+                    temperature=0.8,
+                    do_sample=True,
+                    top_k=30,
+                    top_p=0.9,
+                    num_return_sequences=1,
+                )
+
+                for i in range(outputs.shape[0]):
+                    text = self.tokenizer.decode(outputs[i, len(inputs[i]):], skip_special_tokens=True)
+                    all_samples.append(text)
+
+            else:
+                # Sequential requests
+                for _ in range(self._samples_per_prompt):
+                        outputs = self.model.generate(
+                        inputs,
+                        max_new_tokens=512,
+                        temperature=0.8,
+                        do_sample=True,
+                        top_k=30,
+                        top_p=0.9,
+                        num_return_sequences=1,
+                    )
+                    text = self.tokenizer.decode(output[0, len(inputs[0]):], skip_special_tokens=True)
+                    all_samples.append(text)
+
+            # Optional trim
+            if self._trim:
+                all_samples = [_extract_body(sample, config) for sample in all_samples]
+
             return all_samples
 
+        except torch.cuda.OutOfMemoryError:
+            gc.collect()
+            if torch.cuda.device_count() > 0:
+                torch.cuda.empty_cache()
+            continue
         except Exception as e:
-            print(f"Local inference failed: {e}")
-            return []
+            print(f"Error during generation: {e}")
+            continue
 
 
     def _draw_samples_api(self, prompt: str, config: config_lib.Config) -> Collection[str]:
