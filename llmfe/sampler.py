@@ -18,7 +18,6 @@ import requests
 import json
 import http.client
 import os
-os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
 
 class LLM(ABC):
     def __init__(self, samples_per_prompt: int) -> None:
@@ -167,6 +166,8 @@ class LocalLLM(LLM):
         self._trim = trim
         self._device = 0 if torch.cuda.is_available() else -1
         self._pretrained_model_path = 'meta-llama/Llama-3.1-8B-Instruct'
+
+        os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
 
         # Load local model + tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(
