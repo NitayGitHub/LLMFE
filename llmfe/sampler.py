@@ -235,7 +235,7 @@ class LocalLLM(LLM):
                 else:
                     # Sequential requests
                     for _ in range(self._samples_per_prompt):
-                            outputs = self.model.generate(
+                        outputs = self.model.generate(
                             inputs,
                             max_new_tokens=512,
                             temperature=0.8,
@@ -244,7 +244,7 @@ class LocalLLM(LLM):
                             top_p=0.9,
                             num_return_sequences=1,
                         )
-                        text = self.tokenizer.decode(output[0, len(inputs[0]):], skip_special_tokens=True)
+                        text = self.tokenizer.decode(outputs[0, len(inputs[0]):], skip_special_tokens=True)
                         all_samples.append(text)
     
                 # Optional trim
