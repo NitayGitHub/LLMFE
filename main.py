@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from utils import is_categorical
 from sklearn import preprocessing
-from sklearn.model_selection import StratifiedKFold, KFold
+from sklearn.model_selection import StratifiedKFold, KFold, train_test_split
 
 # Arguments
 parser = ArgumentParser()
@@ -77,34 +77,50 @@ if __name__ == '__main__':
         filed_meta_data = {}
     meta_data = dict(meta_data, **filed_meta_data)
     
-    skf = KFold(n_splits=splits, shuffle=True, random_state=42) if is_regression else StratifiedKFold(n_splits=splits, shuffle=True, random_state=42)
+    if splits > 1:
+        skf = (
+            KFold(n_splits=splits, shuffle=True, random_state=42)
+            if is_regression
+            else StratifiedKFold(n_splits=splits, shuffle=True, random_state=42)
+        )
+        split_generator = skf.split(X, y)
+    else:
+        test_size = 0.2
+        train_idx, test_idx = train_test_split(
+            np.arange(len(X)),
+            test_size=test_size,
+            stratify=y if not is_regression else None,
+            random_state=42
+        )
+        split_generator = [(train_idx, test_idx)]
 
-    i = 0
-    for train_idx, test_idx in skf.split(X, y):
-        # Load config and parameters
-        from llmfe import config
-        from llmfe import sampler
-        from llmfe import evaluator
-        from llmfe import pipeline
-
-        class_config = config.ClassConfig(llm_class=sampler.LocalLLM, sandbox_class=evaluator.LocalSandbox)
-        config = config.Config(use_api = args.use_api,
-                            api_model = args.api_model,)
+    for i, (train_idx, test_idx) in enumerate(split_generator, start=1):
+        from llmfe import config, sampler, evaluator, pipeline
+    
+        class_config = config.ClassConfig(
+            llm_class=sampler.LocalLLM,
+            sandbox_class=evaluator.LocalSandbox
+        )
+        cfg = config.Config(use_api=args.use_api, api_model=args.api_model)
+    
         X_train_fold, X_test_fold = X.iloc[train_idx], X.iloc[test_idx]
         y_train_fold, y_test_fold = y[train_idx], y[test_idx]
-        i +=1
-
-        data_dict = {'inputs': X_train_fold, 'outputs': y_train_fold, 'is_cat': is_cat, 'is_regression': is_regression}
+    
+        data_dict = {
+            'inputs': X_train_fold,
+            'outputs': y_train_fold,
+            'is_cat': is_cat,
+            'is_regression': is_regression
+        }
         dataset = {'data': data_dict}
         log_path = args.log_path + f"_split_{i}"
-
+    
         pipeline.main(
             specification=specification,
             inputs=dataset,
-            config=config,
+            config=cfg,
             meta_data=meta_data,
-            max_sample_nums=global_max_sample_num*splits,
+            max_sample_nums=global_max_sample_num * max(1, splits),
             class_config=class_config,
-            # log_dir = f'logs/llama3/{log_path}',
             log_dir=log_path,
         )
