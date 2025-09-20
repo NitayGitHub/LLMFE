@@ -20,6 +20,7 @@ parser.add_argument('--spec_path', type=str)
 parser.add_argument('--log_path', type=str, default="./logs/oscillator1")
 parser.add_argument('--problem_name', type=str, default="oscillator1")
 parser.add_argument('--run_id', type=int, default=1)
+parser.add_argument('--is_regression', type=bool, default=False)
 args = parser.parse_args()
 
 
@@ -37,7 +38,7 @@ if __name__ == '__main__':
 
     problem_name = args.problem_name
     label_encoder = preprocessing.LabelEncoder()
-    is_regression = False
+    is_regression = args.is_regression
     if problem_name in ['forest-fires', 'housing', 'insurance', 'bike', 'wine', 'crab']:
         is_regression = True
 
