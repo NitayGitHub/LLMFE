@@ -1,0 +1,87 @@
+"""
+[PREFIX]
+
+###
+<Task>
+Predict the car purchase amount (in USD) a customer is likely comfortable spending, based on their demographic information and financial profile.
+
+###
+<Features>
+[FEATURES]
+
+###
+<Examples>
+[EXAMPLES]
+[SUFFIX]
+"""
+
+@evaluate.run
+def evaluate(data: dict):
+    """ Evaluate the feature transformations on data observations."""
+
+    from sklearn import preprocessing
+    from sklearn.model_selection import StratifiedKFold, KFold
+    from sklearn.metrics import root_mean_squared_error
+    from preprocessing import preprocess_datasets
+    import xgboost as xgb
+    import torch
+    import numpy as np
+
+    # Load data observations
+    label_encoder = preprocessing.LabelEncoder()
+    inputs, outputs, is_cat, is_regression = data['inputs'], data['outputs'], data['is_cat'], data['is_regression']
+    X = modify_features(inputs)
+    y = outputs
+
+    # Encode categorical string columns
+    for col in X.columns:
+        if X[col].dtype == 'string':
+            X[col] = label_encoder.fit_transform(X[col])
+
+    # Choose cross-validation strategy
+    kf = KFold(n_splits=4, shuffle=True, random_state=42)
+
+    scores = []
+
+    # 4-Fold Cross-Validation
+    for train_idx, test_idx in kf.split(X, y):
+        X_train, X_test = X.iloc[train_idx], X.iloc[test_idx]
+        y_train, y_test = y[train_idx], y[test_idx]
+
+        X_train_new, X_test_new = preprocess_datasets(X_train, X_test, None)
+        
+        # Convert to tensors
+        X_train = torch.tensor(X_train_new.to_numpy())
+        X_test = torch.tensor(X_test_new.to_numpy())
+        y_train = torch.tensor(y_train)
+        y_test = torch.tensor(y_test)
+        
+        # Load model
+        model = xgb.XGBRegressor(random_state=42)
+
+        model.fit(X_train, y_train)
+        
+        y_pred = model.predict(X_test)
+        score = -1*root_mean_squared_error(y_test, y_pred)
+        scores.append(score)
+
+    # Calculate average score
+    avg_score = np.mean(scores)
+
+    return avg_score, inputs, outputs
+
+
+@equation.evolve
+def modify_features(df_input) -> pd.DataFrame:
+    """
+    Thought 1: Combining age and annual salary can reflect the interaction between
+    experience/life stage and financial capability, potentially useful in modeling purchasing power.
+    
+    New Feature 1: purchasing_power = age * annual Salary
+    """
+    df_output = df_input.copy()
+    # Calculate interaction between age and annual salary
+    df_output['purchasing_power'] = df_output['age'] * df_output['annual Salary']
+    
+    return df_output
+
