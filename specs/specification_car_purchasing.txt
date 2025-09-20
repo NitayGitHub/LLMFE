@@ -74,14 +74,37 @@ def evaluate(data: dict):
 @equation.evolve
 def modify_features(df_input) -> pd.DataFrame:
     """
-    Thought 1: Combining age and annual salary can reflect the interaction between
-    experience/life stage and financial capability, potentially useful in modeling purchasing power.
+    Derived new features to enhance predictive power for the car purchase amount task.
+    Combined age and annual salary to reflect experience/life stage and financial capability.
+    Extracted creditworthiness and financial stability through net worth and annual salary relationships.
+    Calculated purchasing power, financial stability, and age-weighted net worth for improved modeling.
+    Considered the impact of age on creditworthiness and financial stability.
     
-    New Feature 1: purchasing_power = age * annual Salary
+    New Features:
+    - purchasing_power: age * annual Salary
+    - creditworthiness: net worth / annual Salary
+    - financial_stability: net worth * (annual Salary / 100000)
+    - age_weighted_net_worth: age * net worth
+    - age_creditworthiness: age * (net worth / annual Salary)
+    - age_financial_stability: age * (net worth * (annual Salary / 100000))
     """
+    import pandas as pd
+    import numpy as np
+    
     df_output = df_input.copy()
+    
     # Calculate interaction between age and annual salary
     df_output['purchasing_power'] = df_output['age'] * df_output['annual Salary']
     
+    # Extract creditworthiness and financial stability
+    df_output['creditworthiness'] = df_output['net worth'] / df_output['annual Salary']
+    df_output['financial_stability'] = df_output['net worth'] * (df_output['annual Salary'] / 100000)
+    
+    # Calculate age-weighted net worth for improved modeling
+    df_output['age_weighted_net_worth'] = df_output['age'] * df_output['net worth']
+    
+    # Calculate age-weighted creditworthiness and financial stability
+    df_output['age_creditworthiness'] = df_output['age'] * (df_output['net worth'] / df_output['annual Salary'])
+    df_output['age_financial_stability'] = df_output['age'] * (df_output['net worth'] * (df_output['annual Salary'] / 100000))
+    
     return df_output
-
