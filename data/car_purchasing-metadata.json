@@ -1,0 +1,5 @@
+{
+    "age": "age of the individual in years (20 to 70)",
+    "annual Salary": "annual income in USD (20,000 to 100,000)",
+    "net worth": "total net worth of the individual in USD (20,000 to 1,000,000)"
+}
